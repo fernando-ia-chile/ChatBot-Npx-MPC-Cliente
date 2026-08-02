@@ -1,69 +1,68 @@
-# ASP.NET + npx Docker Image with MCP Client
+# Imagen Docker ASP.NET + npx con cliente MCP
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/app-service-ai-dotnet-chatbot-npx-mcp-client)
 
-This sample demonstrates how to run a Model Context Protocol (MCP) client inside an Azure App Service using a custom container that includes both the .NET runtime and Node.js/npx. The default Linux App Service images for .NET do not include Node.js or npx, which is a popular method to run an MCP server (such as [@modelcontextprotocol/server-filesystem](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem)). By building a custom Docker image with both runtimes, this sample enables your ASP.NET Core app to invoke MCP tools using npx at runtime.
+Este ejemplo demuestra cómo ejecutar un cliente del Model Context Protocol (MCP) dentro de Azure App Service usando un contenedor personalizado que incluye tanto el runtime de .NET como Node.js/npx. Las imágenes Linux predeterminadas de App Service para .NET no incluyen Node.js ni npx, que es un método popular para ejecutar un servidor MCP (como [@modelcontextprotocol/server-filesystem](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem)). Al crear una imagen Docker personalizada con ambos runtimes, este ejemplo permite que tu aplicación ASP.NET Core invoque herramientas MCP usando npx en tiempo de ejecución.
 
-![screenshot of running app](image.png)
+![captura de pantalla de la aplicación en ejecución](image.png)
 
-**How it works:**
+**Cómo funciona:**
 
-- The Dockerfile builds an image with both .NET and Node.js (with npx).
-- The app uses the ModelContextProtocol NuGet package to create an MCP client that launches the MCP server using npx (see `Program.cs`).
-- The MCP server is started in the `/workspace/test-files` directory, exposing file system tools to the app.
-- The ASP.NET Core app registers the MCP client as a tool provider and exposes chat and tool discovery endpoints via SignalR (see `ChatHub.cs`).
-- The app is deployed to Azure App Service as a custom container, with managed identity and all required environment variables configured via Bicep and azd.
+- El Dockerfile crea una imagen con .NET y Node.js (con npx).
+- La aplicación usa el paquete NuGet ModelContextProtocol para crear un cliente MCP que inicia el servidor MCP usando npx (consulta `Program.cs`).
+- El servidor MCP se inicia en el directorio `/workspace/test-files`, exponiendo herramientas del sistema de archivos a la aplicación.
+- La aplicación ASP.NET Core registra el cliente MCP como proveedor de herramientas y expone los puntos de conexión de chat y descubrimiento de herramientas mediante SignalR (consulta `ChatHub.cs`).
+- La aplicación se implementa en Azure App Service como contenedor personalizado, con identidad administrada y todas las variables de entorno requeridas configuradas mediante Bicep y azd.
 
-This approach allows your .NET app to use MCP tools that require Node.js/npx, even in environments (like Azure App Service) where the default images do not support them out of the box.
+Este enfoque permite que tu aplicación .NET use herramientas MCP que requieren Node.js/npx, incluso en entornos (como Azure App Service) donde las imágenes predeterminadas no las admiten de fábrica.
 
-## Architecture
+## Arquitectura
 
-The included AZD template provisions the following Azure resources:
+La plantilla AZD incluida aprovisiona los siguientes recursos de Azure:
 
-- **Azure App Service** - Hosts the ASP.NET Core web application with custom container
-- **Azure Container Registry** - Stores the container image
-- **Azure AI Foundry** - Provides OpenAI GPT models
-- **Managed Identity** - For secure authentication between services
+- **Azure App Service** - Aloja la aplicación web ASP.NET Core con contenedor personalizado
+- **Azure Container Registry** - Almacena la imagen del contenedor
+- **Azure AI Foundry** - Proporciona modelos OpenAI GPT
+- **Identidad administrada** - Para la autenticación segura entre servicios
 
-## Deploy to Azure
+## Implementación en Azure
 
-1. Open the repository in a codespace.
+1. Abre el repositorio en un codespace.
 
-2. Login to Azure:
+2. Inicia sesión en Azure:
 
 ```bash
 azd auth login
 az login
 ```
 
-3. Provision the resources:
+3. Aprovisiona los recursos:
 
 ```bash
 azd provision
 ```
 
-This will:
-- Provision all Azure resources
-- Build and push the container image to Azure Container Registry
-- Deploy the application to Azure App Service
-- Configure managed identity and role assignments
+Esto:
+- Aprovisionará todos los recursos de Azure
+- Compilará y enviará la imagen del contenedor a Azure Container Registry
+- Implementará la aplicación en Azure App Service
+- Configurará la identidad administrada y las asignaciones de roles
 
-## Local development
+## Desarrollo local
 
-1. In the terminal, after `azd provision` finishes, get the values of `AZURE_OPENAI_ENDPOINT` and `AZURE_MODEL_DEPLOYMENT`.
+1. En la terminal, después de que `azd provision` finalice, obtén los valores de `AZURE_OPENAI_ENDPOINT` y `AZURE_MODEL_DEPLOYMENT`.
 
     ```bash
     azd env get-values
     ```
 
-2. Open *MCPHostApp/appsettings.Development.json* and add the value of the two variables.
+2. Abre *MCPHostApp/appsettings.Development.json* y agrega el valor de las dos variables.
 
-3. In the terminal, run the application.
+3. En la terminal, ejecuta la aplicación.
 
     ```bash
     cd MCPHostApp
     dotnet run
     ```
 
-4. Select **Open in browser**.
-
+4. Selecciona **Abrir en el explorador**.

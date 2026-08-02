@@ -7,12 +7,12 @@ hooks:
   postprovision:
     shell: sh
     run: |
-      echo "Setting up container registry authentication..."
-      # Build and push the container image
+      echo "Configurando la autenticación del registro de contenedores..."
+      # Compila y envía la imagen del contenedor
       az acr build --registry $AZURE_CONTAINER_REGISTRY_NAME --image aspnet-npx:latest .
       
-      echo "Updating web app container configuration..."
-      # Deploy the container configuration update using Bicep
+      echo "Actualizando la configuración del contenedor de la aplicación web..."
+      # Implementa la actualización de configuración del contenedor usando Bicep
       az deployment group create \
         --resource-group $AZURE_RESOURCE_GROUP \
         --template-file ./infra/update-container.bicep \

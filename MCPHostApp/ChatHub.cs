@@ -3,29 +3,29 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 
 /// <summary>
-/// SignalR hub for chat and tool discovery, integrating an MCP client (invoked via npx) as a tool provider.
+/// Hub de SignalR para chat y descubrimiento de herramientas usando un cliente MCP.
 /// </summary>
 public class ChatHub : Hub
 {
-    // The chat client that handles conversation and streaming responses (e.g., to OpenAI or other LLMs)
+    // Cliente de chat que gestiona la conversación y la respuesta en streaming.
     private readonly IChatClient _chatClient;
-    // The MCP client, which wraps the npx-invoked MCP server and exposes its tools
-    private readonly IMcpClient _mcpClient;
+    // Cliente MCP que expone las herramientas del servidor iniciado con npx.
+    private readonly McpClient _mcpClient;
 
-    public ChatHub(IChatClient chatClient, IMcpClient mcpClient)
+    public ChatHub(IChatClient chatClient, McpClient mcpClient)
     {
         _chatClient = chatClient;
         _mcpClient = mcpClient;
     }
 
     /// <summary>
-    /// Handles incoming chat messages from the client, streams LLM responses, and integrates MCP tools.
+    /// Procesa mensajes entrantes, transmite la respuesta del modelo e integra herramientas MCP.
     /// </summary>
     public async Task SendMessage(string user, string message, List<object> conversationHistory)
     {
         try
         {
-            // Get available tools from MCP server
+            // Obtiene las herramientas disponibles desde el servidor MCP.
             IList<McpClientTool> tools = await _mcpClient.ListToolsAsync();
 
             List<ChatMessage> messages = new();
@@ -47,46 +47,44 @@ public class ChatHub : Hub
             if (messages.Count == 0)
             {
                 messages.Add(new ChatMessage(ChatRole.System,
-                    "You are a helpful assistant with access to file operations through MCP tools. " +
-                    "The filesystem server has access to /workspace/test-files directory. " +
-                    "When users ask to list files or access files, use the available MCP tools like list_directory, read_file, etc. " +
-                    "If you get permission errors, guide the user to work within the allowed directory structure."));
+                    "Eres un asistente util con acceso a operaciones de archivos mediante herramientas MCP. " +
+                    "El servidor de sistema de archivos tiene acceso al directorio /workspace/test-files. " +
+                    "Cuando el usuario pida listar o acceder a archivos, usa las herramientas MCP disponibles como list_directory, read_file, etc. " +
+                    "Si aparecen errores de permisos, guia al usuario para trabajar dentro de la estructura permitida."));
             }
 
-            // Add the new user message
+            // Agrega el nuevo mensaje del usuario.
             messages.Add(new ChatMessage(ChatRole.User, message));
 
-            // Notify all clients that the assistant is "typing"
+            // Notifica a los clientes que el asistente esta escribiendo.
             await Clients.All.SendAsync("TypingIndicator", true);
 
-            string fullResponse = "";
             List<ChatResponseUpdate> updates = [];
 
-            // Stream the LLM response, passing the available MCP tools for tool-calling
+            // Transmite la respuesta del modelo pasando las herramientas MCP disponibles.
             await foreach (ChatResponseUpdate update in _chatClient
                 .GetStreamingResponseAsync(messages, new() { Tools = [.. tools] }))
             {
-                fullResponse += update.Text;
                 updates.Add(update);
-                // Send incremental updates to the client UI
+                // Envia actualizaciones incrementales a la interfaz.
                 await Clients.All.SendAsync("ReceiveMessageStream", update.Text ?? "");
             }
 
-            // Stop the typing indicator
+            // Apaga el indicador de escritura.
             await Clients.All.SendAsync("TypingIndicator", false);
 
-            // Update the conversation with all messages, including tool calls
+            // Actualiza la conversacion con todos los mensajes, incluidas las llamadas a herramientas.
             messages.AddMessages(updates);
         }
         catch (Exception ex)
         {
             await Clients.All.SendAsync("TypingIndicator", false);
-            await Clients.All.SendAsync("ReceiveMessage", "System", $"Error: {ex.Message}");
+            await Clients.All.SendAsync("ReceiveMessage", "Sistema", $"Error: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Returns the list of available MCP tools to the client.
+    /// Devuelve al cliente la lista de herramientas MCP disponibles.
     /// </summary>
     public async Task GetAvailableTools()
     {
@@ -98,7 +96,7 @@ public class ChatHub : Hub
         }
         catch (Exception ex)
         {
-            await Clients.Caller.SendAsync("ReceiveMessage", "System", $"Error getting tools: {ex.Message}");
+            await Clients.Caller.SendAsync("ReceiveMessage", "Sistema", $"Error al obtener herramientas: {ex.Message}");
         }
     }
 }

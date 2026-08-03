@@ -55,7 +55,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2024-11-01' = {
   name: 'plan-${resourceToken}'
   location: location
   tags: tags
-  sku: { name: 'B1', tier: 'Basic' }
+  sku: { name: 'F1', tier: 'Free' }
   kind: 'linux'
   properties: {
     reserved: true

@@ -1,28 +1,37 @@
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.AI;
-using ModelContextProtocol.Client;
 using Microsoft.AspNetCore.SignalR;
+using ModelContextProtocol.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Create the MCP client outside of DI to avoid disposal issues.
-// This launches the MCP server using npx (requires Node.js and npx in the Linux container).
-// The server is started in the /workspace/test-files directory, exposing file tools.
-var mcpClientTask = McpClientFactory.CreateAsync(
+var sandboxPath = Environment.GetEnvironmentVariable("MCP_FILES_ROOT");
+if (string.IsNullOrWhiteSpace(sandboxPath))
+{
+    var containerSandboxPath = "/workspace/test-files";
+    sandboxPath = !OperatingSystem.IsWindows() && Directory.Exists(containerSandboxPath)
+        ? containerSandboxPath
+        : Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "test-files"));
+}
+
+Directory.CreateDirectory(sandboxPath);
+
+// Crea el cliente MCP fuera de DI para evitar problemas de ciclo de vida.
+// Esto inicia el servidor MCP con npx y expone el sandbox de archivos.
+var mcpClientTask = McpClient.CreateAsync(
     new StdioClientTransport(new()
     {
         Command = "npx",
         Arguments = ["-y", "@modelcontextprotocol/server-filesystem", "."],
         Name = "Files MCP Server",
-        WorkingDirectory = "/workspace/test-files"
+        WorkingDirectory = sandboxPath
     }));
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 
-// Register the Azure OpenAI chat client as a singleton.
-// This uses the endpoint and deployment name from configuration/environment variables.
+// Registra el cliente de chat de Azure OpenAI como singleton.
 builder.Services.AddSingleton<IChatClient>(serviceProvider =>
 {
     var configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -35,13 +44,13 @@ builder.Services.AddSingleton<IChatClient>(serviceProvider =>
     .Build();
 });
 
-// Register MCP client as a simple singleton
+// Registra el cliente MCP como singleton.
 var mcpClient = await mcpClientTask;
-builder.Services.AddSingleton<IMcpClient>(mcpClient);
+builder.Services.AddSingleton(mcpClient);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// Configura el pipeline HTTP.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -57,7 +66,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Map the SignalR chat hub endpoint
+// Expone el hub de SignalR.
 app.MapHub<ChatHub>("/chathub");
 
 app.Run();
